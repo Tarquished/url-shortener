@@ -13,7 +13,10 @@ import (
 	"strings"
 	"time"
 
+	_ "url-shortener/docs" // <-- GANTI "url-shortener" sesuai module name di go.mod kamu
+
 	"github.com/golang-jwt/jwt/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -41,11 +44,27 @@ type urlData struct {
 }
 
 type inputData struct {
-	URL string `json:"url"`
+	URL string `json:"url" example:"https://example.com/very-long-url"`
 }
 
 type ResponseError struct {
 	Error string `json:"error"`
+}
+
+type ResponPesan struct {
+	Pesan string `json:"pesan"`
+}
+
+type ResponLogin struct {
+	Pesan string `json:"pesan" example:"Berhasil login!"`
+	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIs..."`
+}
+
+type GetURL struct {
+	ID          int    `json:"id" example:"1"`
+	OriginalURL string `json:"originalurl" example:"https://example.com/very-long-url"`
+	ShortCode   string `json:"shortcode" example:"aBc123"`
+	ClickCount  uint   `json:"clickcount" example:"5"`
 }
 
 func sendError(w http.ResponseWriter, message string, statusCode int) {
@@ -69,6 +88,20 @@ func getUserID(r *http.Request) uint {
 	return userID
 }
 
+// handlerCreateURL godoc
+// @Summary      Buat short URL baru
+// @Description  Membuat short URL dari URL panjang yang diberikan
+// @Description  Short code di-generate random 6 karakter
+// @Tags         URL
+// @Accept       json
+// @Produce      json
+// @Param        request  body      inputData  true  "URL yang mau di-shorten"
+// @Security     BearerAuth
+// @Success      200      {object}  ResponPesan
+// @Failure      400      {object}  ResponseError
+// @Failure      405      {object}  ResponseError
+// @Failure      500      {object}  ResponseError
+// @Router       /create [post]
 func handlerCreateURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		sendError(w, "method harus POST", 405)
@@ -102,14 +135,26 @@ func handlerCreateURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	succesRespon := map[string]any{
-		"pesan": "Berhasil menambahkan url ke database",
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(succesRespon)
+	json.NewEncoder(w).Encode(ResponPesan{
+		Pesan: "Berhasil menambahkan url ke database",
+	})
 }
 
+// handlerUpdateURL godoc
+// @Summary      Update URL berdasarkan ID
+// @Description  Mengubah original URL dari short URL yang sudah ada
+// @Tags         URL
+// @Accept       json
+// @Produce      json
+// @Param        id       query     int        true  "ID URL"
+// @Param        request  body      inputData  true  "URL baru"
+// @Security     BearerAuth
+// @Success      200      {object}  ResponPesan
+// @Failure      400      {object}  ResponseError
+// @Failure      405      {object}  ResponseError
+// @Failure      500      {object}  ResponseError
+// @Router       /update [put]
 func handlerUpdateURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "PUT" {
 		sendError(w, "method harus PUT", 405)
@@ -151,11 +196,24 @@ func handlerUpdateURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
-		"pesan": "URL berhasil diupdate",
+	json.NewEncoder(w).Encode(ResponPesan{
+		Pesan: "URL berhasil diupdate",
 	})
 }
 
+// handlerHapusURL godoc
+// @Summary      Hapus URL berdasarkan ID
+// @Description  Menghapus short URL dari database
+// @Description  Diverifikasi melalui JWT untuk mengecek kepemilikan
+// @Tags         URL
+// @Produce      json
+// @Param        id  query  int  true  "ID URL"
+// @Security     BearerAuth
+// @Success      200  {object}  ResponPesan
+// @Failure      400  {object}  ResponseError
+// @Failure      405  {object}  ResponseError
+// @Failure      500  {object}  ResponseError
+// @Router       /delete [delete]
 func handlerHapusURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "DELETE" {
 		sendError(w, "method harus DELETE", 405)
@@ -179,12 +237,25 @@ func handlerHapusURL(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "gagal menghapus data", 500)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
-		"pesan": "URL berhasil dihapus",
+	json.NewEncoder(w).Encode(ResponPesan{
+		Pesan: "URL berhasil dihapus",
 	})
 }
 
+// handlerRegister godoc
+// @Summary      Register user baru
+// @Description  Mendaftarkan user baru dengan username dan password
+// @Description  Password di-hash menggunakan bcrypt
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      InputAuth    true  "Username dan password"
+// @Success      200      {object}  ResponPesan
+// @Failure      400      {object}  ResponseError
+// @Failure      405      {object}  ResponseError
+// @Router       /register [post]
 func handlerRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		sendError(w, "method harus POST", 405)
@@ -223,14 +294,24 @@ func handlerRegister(w http.ResponseWriter, r *http.Request) {
 		Username: input.Username,
 		Password: string(hashPassword),
 	})
-	succesRespon := map[string]any{
-		"pesan": "Berhasil menambahkan username ke database",
-	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(succesRespon)
+	json.NewEncoder(w).Encode(ResponPesan{
+		Pesan: "Berhasil menambahkan username ke database",
+	})
 }
 
+// handlerLogin godoc
+// @Summary      Login user
+// @Description  Login dengan username dan password, mendapatkan JWT token
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      InputAuth    true  "Username dan password"
+// @Success      200      {object}  ResponLogin
+// @Failure      400      {object}  ResponseError
+// @Failure      405      {object}  ResponseError
+// @Router       /login [post]
 func handlerLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		sendError(w, "method harus POST", 405)
@@ -285,13 +366,12 @@ func handlerLogin(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "gagal generate token", 400)
 		return
 	}
-	succesRespon := map[string]any{
-		"pesan": "Berhasil login!",
-		"token": tokenString,
-	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(succesRespon)
+	json.NewEncoder(w).Encode(ResponLogin{
+		Pesan: "Berhasil login!",
+		Token: tokenString,
+	})
 }
 
 func algoritma(t *jwt.Token) (interface{}, error) {
@@ -337,7 +417,7 @@ func handlerGoToURL(w http.ResponseWriter, r *http.Request) {
 
 	code := r.URL.Path[1:]
 
-	if code == "login" || code == "register" || code == "create" || code == "update" || code == "delete" {
+	if code == "login" || code == "register" || code == "create" || code == "update" || code == "delete" || code == "urls" || strings.HasPrefix(code, "swagger") {
 		return
 	}
 	var temp urlData
@@ -353,6 +433,16 @@ func handlerGoToURL(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, temp.OriginalURL, http.StatusFound)
 }
 
+// handlerUrls godoc
+// @Summary      Lihat semua URL milik user
+// @Description  Menampilkan seluruh short URL yang dimiliki user
+// @Description  Termasuk original URL, short code, dan click count
+// @Tags         URL
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {array}   GetURL
+// @Failure      405  {object}  ResponseError
+// @Router       /urls [get]
 func handlerUrls(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		sendError(w, "method harus GET", 405)
@@ -362,8 +452,19 @@ func handlerUrls(w http.ResponseWriter, r *http.Request) {
 	userID := getUserID(r)
 	var urls []urlData
 	db.Where("user_id = ?", userID).Find(&urls)
+
+	var hasil []GetURL
+	for _, v := range urls {
+		hasil = append(hasil, GetURL{
+			ID:          int(v.ID),
+			OriginalURL: v.OriginalURL,
+			ShortCode:   v.ShortCode,
+			ClickCount:  v.ClickCount,
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(urls)
+	json.NewEncoder(w).Encode(hasil)
 }
 
 func recoveryMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -378,6 +479,24 @@ func recoveryMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 
 }
+
+// @title           URL Shortener API
+// @version         1.0
+// @description     REST API untuk mempersingkat URL dengan JWT authentication
+// @description     Fitur: shorten URL, click counter, redirect, user ownership
+
+// @contact.name    Jason
+// @contact.url     https://github.com/Tarquished
+
+// @host            url-shortener-production-d0ce.up.railway.app
+// @schemes			https
+// @BasePath        /
+
+// @securityDefinitions.apikey BearerAuth
+// @in              header
+// @name            Authorization
+// @description     Masukkan token dengan format: Bearer <token>
+
 func main() {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
@@ -398,8 +517,9 @@ func main() {
 	http.HandleFunc("/create", recoveryMiddleware(authMiddleware(handlerCreateURL)))
 	http.HandleFunc("/update", recoveryMiddleware(authMiddleware(handlerUpdateURL)))
 	http.HandleFunc("/delete", recoveryMiddleware(authMiddleware(handlerHapusURL)))
-	http.HandleFunc("/", recoveryMiddleware(handlerGoToURL))
 	http.HandleFunc("/urls", recoveryMiddleware(authMiddleware(handlerUrls)))
+	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
+	http.HandleFunc("/", recoveryMiddleware(handlerGoToURL))
 
 	port := os.Getenv("PORT")
 	if port == "" {

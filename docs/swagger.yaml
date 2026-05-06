@@ -1,0 +1,268 @@
+basePath: /
+definitions:
+  main.GetURL:
+    properties:
+      clickcount:
+        example: 5
+        type: integer
+      id:
+        example: 1
+        type: integer
+      originalurl:
+        example: https://example.com/very-long-url
+        type: string
+      shortcode:
+        example: aBc123
+        type: string
+    type: object
+  main.InputAuth:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  main.ResponLogin:
+    properties:
+      pesan:
+        example: Berhasil login!
+        type: string
+      token:
+        example: eyJhbGciOiJIUzI1NiIs...
+        type: string
+    type: object
+  main.ResponPesan:
+    properties:
+      pesan:
+        type: string
+    type: object
+  main.ResponseError:
+    properties:
+      error:
+        type: string
+    type: object
+  main.inputData:
+    properties:
+      url:
+        example: https://example.com/very-long-url
+        type: string
+    type: object
+host: url-shortener-production-d0ce.up.railway.app
+info:
+  contact:
+    name: Jason
+    url: https://github.com/Tarquished
+  description: |-
+    REST API untuk mempersingkat URL dengan JWT authentication
+    Fitur: shorten URL, click counter, redirect, user ownership
+  title: URL Shortener API
+  version: "1.0"
+paths:
+  /create:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Membuat short URL dari URL panjang yang diberikan
+        Short code di-generate random 6 karakter
+      parameters:
+      - description: URL yang mau di-shorten
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.inputData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ResponPesan'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Buat short URL baru
+      tags:
+      - URL
+  /delete:
+    delete:
+      description: |-
+        Menghapus short URL dari database
+        Diverifikasi melalui JWT untuk mengecek kepemilikan
+      parameters:
+      - description: ID URL
+        in: query
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ResponPesan'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Hapus URL berdasarkan ID
+      tags:
+      - URL
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Login dengan username dan password, mendapatkan JWT token
+      parameters:
+      - description: Username dan password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.InputAuth'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ResponLogin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+      summary: Login user
+      tags:
+      - Auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Mendaftarkan user baru dengan username dan password
+        Password di-hash menggunakan bcrypt
+      parameters:
+      - description: Username dan password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.InputAuth'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ResponPesan'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+      summary: Register user baru
+      tags:
+      - Auth
+  /update:
+    put:
+      consumes:
+      - application/json
+      description: Mengubah original URL dari short URL yang sudah ada
+      parameters:
+      - description: ID URL
+        in: query
+        name: id
+        required: true
+        type: integer
+      - description: URL baru
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.inputData'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ResponPesan'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Update URL berdasarkan ID
+      tags:
+      - URL
+  /urls:
+    get:
+      description: |-
+        Menampilkan seluruh short URL yang dimiliki user
+        Termasuk original URL, short code, dan click count
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.GetURL'
+            type: array
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/main.ResponseError'
+      security:
+      - BearerAuth: []
+      summary: Lihat semua URL milik user
+      tags:
+      - URL
+schemes:
+- https
+securityDefinitions:
+  BearerAuth:
+    description: 'Masukkan token dengan format: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
